@@ -1,7 +1,4 @@
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 class ParseException extends Exception {
     public ParseException(String s) {
@@ -23,9 +20,10 @@ public class Main {
             "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "REAL", "TIME", "XML",
             "SDO_ELEM_INFO_ARRAY", "SDO_ORDINATE_ARRAY"});
 
-    static int pos = 0;
     static final HashSet<String> keywordSet = new HashSet<>(keywords);
     static final HashSet<String> dataTypeSet = new HashSet<>(dataTypes);
+    static HashMap<String, String> variableMaps = new HashMap<>();
+    static int pos = 0;
 
     public enum State {
 
@@ -56,6 +54,9 @@ public class Main {
             public State nextState(String word, Character event) throws ParseException {
                 if (isName(word)) {
                     if (event == ' ') {
+                        if (variableMaps.containsValue(word))
+                            throw new ParseException("Table already exists:" + (pos + 1));
+                        else variableMaps.put("TABLE_NAME", word);
                         return State.NAME;
                     } else throw new ParseException("Syntax error in query:" + (pos + 1));
                 } else if (word.isEmpty()) {
@@ -68,6 +69,7 @@ public class Main {
             @Override
             public State nextState(String word, Character event) throws ParseException {
                 if (event == '(' && isName(word)) {
+                    variableMaps.put("VARIABLE_NAME", word);
                     return State.NAME;
                 } else if (event == ' ' && dataTypeSet.contains(word)) {
                     return State.ATTRIBUTE_TYPE;
@@ -117,9 +119,12 @@ public class Main {
         public abstract State nextState(String word, Character event) throws ParseException;
     }
 
-    public static boolean isName(String word) {
+    public static boolean isName(String word) throws ParseException {
         if (word.length() > 0 && !keywordSet.contains(word) && !dataTypeSet.contains(word)) {
-            return true;
+            if (variableMaps.containsValue(word))
+                throw new ParseException("Variable " + word + " already used:" + (pos + 1));
+            else
+                return true;
         } else return false;
     }
 
@@ -145,11 +150,11 @@ public class Main {
 
                 if (!word.isEmpty())
                     event = input.charAt(pos++);
-                else if(word.isEmpty() && event == " "){
-                      pos++;
-                }
+                else if (word.isEmpty() && event == ' ') {
+                    event = input.charAt(pos++);
+                } else pos++;
 
-                while (pos < input.length() && Character.isLetter(input.charAt(pos))) {
+                while (pos < input.length() && (Character.isLetter(input.charAt(pos)) || (Character.isDigit(input.charAt(pos)) && next_word.length() > 1))) {
                     next_word += input.charAt(pos++);
                 }
                 word = next_word;
