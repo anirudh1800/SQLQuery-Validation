@@ -14,11 +14,10 @@ public class Main {
             "REFERENCES", "NULL", "NOT", "LIKE", "IN", "BETWEEN", "OR", "AND",
             "=", ">", "<", "<=", ">="});
 
-    static final List<String> dataTypes = Arrays.asList(new String[]{
-            "INT", "STRING", "VARCHAR", "INTEGER", "NUMBER", "DATE", "NVARCHAR", "CHAR",
-            "VARCHAR2", "SDO_GEOMETRY", "CHARACTER", "BOOLEAN", "BINARY", "SMALLINT",
-            "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "REAL", "TIME", "XML",
-            "SDO_ELEM_INFO_ARRAY", "SDO_ORDINATE_ARRAY"});
+    static final List<String> dataTypes = Arrays.asList(new String[]{"CHAR", "VARCHAR", "TINYTEXT", "TEXT", "BLOB", "MEDIUMTEXT",
+            "MEDIUMBLOB", "LONGTEXT", "LONGBLOB", "ENUM", "SET",
+            "TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "FLOAT", "DOUBLE",
+            "DECIMAL", "DATE", "DATETIME", "TIMESTAMP", "TIME", "YEAR", "SDO_ELEM_INFO_ARRAY", "SDO_ORDINATE_ARRAY", "SDO_GEOMETRY"});
 
     static final HashSet<String> keywordSet = new HashSet<>(keywords);
     static final HashSet<String> dataTypeSet = new HashSet<>(dataTypes);
@@ -30,11 +29,23 @@ public class Main {
         INITIAL {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-                if (word.equalsIgnoreCase("CREATE")) {
-                    return State.CREATE;
-                } else if (word.isEmpty()) {
-                    return State.INITIAL;
-                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+                switch(word.toUpperCase()){
+
+                    case "CREATE":
+                        return State.CREATE;
+
+                    case "INSERT":
+                        return State.INSERT;
+
+                    case "SELECT":
+                        return State.SELECT;
+
+                    case "":
+                        return State.INITIAL;
+
+                    default:
+                        throw new ParseException("Syntax error in query:" + (pos + 1));
+                }
             }
         },
 
@@ -46,6 +57,37 @@ public class Main {
                 } else if (word.isEmpty()) {
                     return State.CREATE;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        INSERT {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if(word.equalsIgnoreCase("INTO") && event == ' '){
+                    return State.INTO;
+                } else if(word.isEmpty()){
+                    return State.INSERT;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        INTO {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if (isName(word)) {
+                    if (event == ' ') {
+                        return State.NAME;
+                    } else throw new ParseException("Syntax error in query:" + (pos + 1));
+                } else if (word.isEmpty()) {
+                    return State.INTO;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        SELECT {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+
             }
         },
 
@@ -73,9 +115,11 @@ public class Main {
                     return State.NAME;
                 } else if (event == ' ' && dataTypeSet.contains(word)) {
                     return State.ATTRIBUTE_TYPE;
-                } else if (word.isEmpty())
+                } else if (word.isEmpty()) {
                     return State.NAME;
-                else throw new ParseException("Syntax error in query:" + (pos + 1));
+                } else if (word.equalsIgnoreCase("VALUES")) {
+                    return State.VALUES;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
         },
 
@@ -109,6 +153,32 @@ public class Main {
             }
         },
 
+        VALUES {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if (event == '(' && isValue(word)) {
+                    return State.VALUE;
+                } else if (word.isEmpty()) {
+                    return State.VALUES;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        VALUE {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if (event == '(' && isValue(word)) {
+                    return State.VALUE;
+                } else if (event == ' ' && dataTypeSet.contains(word)) {
+                    return State.ATTRIBUTE_TYPE;
+                } else if (word.isEmpty()) {
+                    return State.NAME;
+                } else if (word.equalsIgnoreCase("VALUES")) {
+                    return State.VALUES;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
         END {
             @Override
             public State nextState(String word, Character event) {
@@ -126,6 +196,27 @@ public class Main {
             else
                 return true;
         } else return false;
+    }
+
+    public static boolean isValue(String word) throws ParseException {
+        if (word.length() > 0) {
+            if(isInteger(word) || is)
+                return true;
+        } else return false;
+    }
+
+    public static boolean isInteger(String s) {
+        boolean isValidInteger = false;
+        try
+        {
+            Integer.parseInt(s);
+            isValidInteger = true;
+        }
+        catch (NumberFormatException ex)
+        {
+        }
+
+        return isValidInteger;
     }
 
     public static State currentState = State.INITIAL;
