@@ -1,5 +1,10 @@
 import java.util.*;
 
+/*
+    created by anirudhgali
+
+ */
+
 public class Main {
 
     static final List<String> keywords = Arrays.asList(new String[]{"CREATE",
@@ -16,8 +21,9 @@ public class Main {
     static final HashSet<String> keywordSet = new HashSet<>(keywords);
     static final HashSet<String> dataTypeSet = new HashSet<>(dataTypes);
     static HashMap<String, String> variableMaps = new HashMap<>();
+    static HashMap<String, String> variableTypes = new HashMap<>(); // TODO
 
-    public static State currentState = State.INITIAL;
+    public static State initialState = State.INITIAL;
     public static String input;
     static int pos = 0;
 
@@ -84,7 +90,24 @@ public class Main {
         SELECT {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-                return State.SELECT;
+                if(event == ' ' && isName(word)){
+                    return State.NAME;
+                } else if(event == '*') {
+                    return State.FROM;
+                } else if(word.isEmpty()) {
+                    return State.SELECT;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        FROM {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if(event == ' ' && isName(word)){
+                    return State.TABLE_NAME;
+                } else if(word.isEmpty()) {
+                    return State.FROM;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
         },
 
@@ -112,6 +135,30 @@ public class Main {
                     return State.NAME;
                 } else if (event == ' ' && dataTypeSet.contains(word)) {
                     return State.ATTRIBUTE_TYPE;
+                } else if (event == ' ' && word.equalsIgnoreCase("FROM")) {
+                    return State.FROM;
+                } else if (event == ',' && isName(word) && initialState == SELECT) {
+                    return State.NAME;
+                } else if (word.isEmpty()) {
+                    return State.NAME;
+                } else if (word.equalsIgnoreCase("VALUES")) {
+                    return State.VALUES;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        TABLE_NAME {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if (event == '(' && isName(word)) {
+                    variableMaps.put("VARIABLE_NAME", word);
+                    return State.NAME;
+                } else if (event == ' ' && dataTypeSet.contains(word)) {
+                    return State.ATTRIBUTE_TYPE;
+                } else if (event == ' ' && word.equalsIgnoreCase("FROM")) {
+                    return State.FROM;
+                } else if (event == ',' && isName(word) && initialState == SELECT) {
+                    return State.NAME;
                 } else if (word.isEmpty()) {
                     return State.NAME;
                 } else if (word.equalsIgnoreCase("VALUES")) {
@@ -188,9 +235,21 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
         String word = new String();
         Character event = null;
+        State currentState = State.INITIAL;
 
+        System.out.println("Please type the query:");
         input = scanner.nextLine();
         pos = 0;
+
+        System.out.print("Validating.");
+        try {
+            Thread.sleep(300);
+            System.out.print("..");
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("...");
 
         while (pos < input.length() && Character.isLetter(input.charAt(pos))) {
             word += input.charAt(pos++);
@@ -198,6 +257,7 @@ public class Main {
 
         try {
             currentState = currentState.nextState(word, event);
+            initialState = currentState;
 
             while (currentState != State.END && pos < input.length()) {
                 String next_word = new String();
@@ -215,6 +275,7 @@ public class Main {
                         boolean flag = false;
                         while (pos < input.length()) {
                             switch (input.charAt(pos)) {
+
                                 case ' ':
                                     flag = true;
                                     break;
@@ -260,7 +321,7 @@ public class Main {
 
     public static boolean isName(String word) throws ParseException {
         if (word.length() > 0 && !keywordSet.contains(word.toUpperCase()) && !dataTypeSet.contains(word.toUpperCase())) {
-            if (variableMaps.containsValue(word))
+            if (initialState == State.CREATE && variableMaps.containsValue(word))
                 throw new ParseException("Variable " + word + " already used:" + (pos + 1));
             else
                 return true;
@@ -312,7 +373,6 @@ public class Main {
             isValidFloat = true;
         } catch (NumberFormatException ex) {
         }
-
         return isValidFloat;
     }
 
@@ -323,7 +383,6 @@ public class Main {
             isValidInteger = true;
         } catch (NumberFormatException ex) {
         }
-
         return isValidInteger;
     }
 }
