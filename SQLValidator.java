@@ -87,7 +87,7 @@ public class Main {
         SELECT {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-
+                return State.SELECT;
             }
         },
 
@@ -167,14 +167,12 @@ public class Main {
         VALUE {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-                if (event == '(' && isValue(word)) {
+                if (event == ',' && isValue(word)) {
                     return State.VALUE;
-                } else if (event == ' ' && dataTypeSet.contains(word)) {
-                    return State.ATTRIBUTE_TYPE;
                 } else if (word.isEmpty()) {
-                    return State.NAME;
-                } else if (word.equalsIgnoreCase("VALUES")) {
-                    return State.VALUES;
+                    return State.VALUE;
+                } else if (event == ')') {
+                    return State.END;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
         },
@@ -200,16 +198,62 @@ public class Main {
 
     public static boolean isValue(String word) throws ParseException {
         if (word.length() > 0) {
-            if(isInteger(word) || is)
+            if(isInteger(word) || isText(word) || isFloat(word))
                 return true;
-        } else return false;
+            else if(isSdogeometry(word)) {
+                int tmp = pos;
+                if (input.charAt(pos) == '('){
+                    while (input.charAt(pos) != ')' && pos < input.length()) {
+                        pos++;
+                    }
+                    if(pos == input.length())
+                        throw new ParseException("SDO_GEOMETRY type error:" + (tmp + 1));
+                    pos++;
+                    return true;
+                }
+                else throw new ParseException("SDO_GEOMETRY type error:" + (tmp + 1));
+
+            } else{
+                return false;
+            }
+        }
+        return false;
     }
 
-    public static boolean isInteger(String s) {
+    private static boolean isText(String word) {
+        if(word.startsWith("'") && word.endsWith("'"))
+            return true;
+        else
+            return false;
+    }
+
+    public static boolean isSdogeometry(String word){
+        if(word.startsWith("SDO_GEOMETRY")){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    public static boolean isFloat(String word){
+        boolean isValidFloat = false;
+        try
+        {
+            Float.parseFloat(word);
+            isValidFloat = true;
+        }
+        catch (NumberFormatException ex)
+        {
+        }
+
+        return isValidFloat;
+    }
+
+    public static boolean isInteger(String word) {
         boolean isValidInteger = false;
         try
         {
-            Integer.parseInt(s);
+            Integer.parseInt(word);
             isValidInteger = true;
         }
         catch (NumberFormatException ex)
@@ -219,14 +263,16 @@ public class Main {
         return isValidInteger;
     }
 
+
     public static State currentState = State.INITIAL;
+    public static String input;
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         String word = new String();
         Character event = null;
 
-        String input = scanner.nextLine();
+        input = scanner.nextLine();
         pos = 0;
 
         while (pos < input.length() && Character.isLetter(input.charAt(pos))) {
@@ -245,8 +291,19 @@ public class Main {
                     event = input.charAt(pos++);
                 } else pos++;
 
-                while (pos < input.length() && (Character.isLetter(input.charAt(pos)) || (Character.isDigit(input.charAt(pos)) && next_word.length() > 1))) {
-                    next_word += input.charAt(pos++);
+                switch(currentState){
+
+                    case VALUES:
+                        while (pos < input.length() && (input.charAt(pos) != '''  || Character.isLetter(input.charAt(pos)) || Character.isDigit(input.charAt(pos)))) {
+                            next_word += input.charAt(pos++);
+                        }
+                        break;
+
+                    default:
+                        while (pos < input.length() && (Character.isLetter(input.charAt(pos)) || (Character.isDigit(input.charAt(pos)) && next_word.length() > 1))) {
+                            next_word += input.charAt(pos++);
+                        }
+                        break;
                 }
                 word = next_word;
                 currentState = currentState.nextState(word, event);
@@ -263,9 +320,4 @@ public class Main {
     private static void select_check(String[] query) {
     }
 
-    private static void insert_check(String[] query) {
-    }
-
-    private static void create_check(String[] query) {
-    }
 }
