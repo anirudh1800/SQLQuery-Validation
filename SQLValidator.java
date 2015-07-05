@@ -26,6 +26,9 @@ public class Main {
     public static State initialState = State.INITIAL;
     public static String input;
     static int pos = 0;
+    char left_op;
+    char righ_op;
+    char operator;
 
     public enum State {
 
@@ -150,19 +153,32 @@ public class Main {
         TABLE_NAME {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-                if (event == '(' && isName(word)) {
-                    variableMaps.put("VARIABLE_NAME", word);
-                    return State.NAME;
-                } else if (event == ' ' && dataTypeSet.contains(word)) {
-                    return State.ATTRIBUTE_TYPE;
-                } else if (event == ' ' && word.equalsIgnoreCase("FROM")) {
-                    return State.FROM;
-                } else if (event == ',' && isName(word) && initialState == SELECT) {
-                    return State.NAME;
-                } else if (word.isEmpty()) {
-                    return State.NAME;
-                } else if (word.equalsIgnoreCase("VALUES")) {
-                    return State.VALUES;
+                if (event == ' ' && word.equalsIgnoreCase("WHERE")) {
+                    return State.WHERE;
+                }else if (word.isEmpty()) {
+                    return State.TABLE_NAME;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        WHERE {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if (event == ' ' && word.equalsIgnoreCase("WHERE")) {
+                    return State.WHERE;
+                }else if (word.isEmpty()) {
+                    return State.TABLE_NAME;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        COND {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if (event == ' ' && word.equalsIgnoreCase("WHERE")) {
+                    return State.WHERE;
+                }else if (word.isEmpty()) {
+                    return State.TABLE_NAME;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
         },
@@ -363,6 +379,12 @@ public class Main {
             return true;
         } else {
             return false;
+        }
+    }
+
+    public static boolean isOperator(String word) {
+        if(word.matches("=|>=|<=|   ")){
+
         }
     }
 
