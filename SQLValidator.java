@@ -8,10 +8,9 @@ import java.util.*;
 public class Main {
 
     static final List<String> keywords = Arrays.asList(new String[]{"CREATE",
-            "TABLE", "INSERT", "SELECT", "INTO", "FROM", "WHERE", "*", "(", ")",
+            "TABLE", "INSERT", "SELECT", "INTO", "FROM", "WHERE",
             "MDSYS.SPATIAL_INDEX", "INDEXTYPE", "PRIMARY", "KEY",
-            "REFERENCES", "NULL", "NOT", "LIKE", "IN", "BETWEEN", "OR", "AND", "VALUES",
-            "=", ">", "<", "<=", ">="});
+            "REFERENCES", "FOREIGN", "NULL","UNION", "UPDATE", "DROP", "DELETE", "ALTER"});
 
     static final List<String> dataTypes = Arrays.asList(new String[]{"CHAR", "VARCHAR", "VARCHAR2", "TINYTEXT", "TEXT", "BLOB", "MEDIUMTEXT",
             "MEDIUMBLOB", "LONGTEXT", "LONGBLOB", "ENUM", "SET", "NUMBER",
