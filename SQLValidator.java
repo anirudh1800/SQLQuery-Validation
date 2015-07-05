@@ -5,7 +5,7 @@ import java.util.*;
 
  */
 
-public class Main {
+public class SQLValidator {
 
     static final List<String> keywords = Arrays.asList(new String[]{"CREATE",
             "TABLE", "INSERT", "SELECT", "INTO", "FROM", "WHERE",
