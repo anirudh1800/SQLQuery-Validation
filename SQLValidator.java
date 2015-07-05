@@ -95,8 +95,8 @@ public class Main {
             public State nextState(String word, Character event) throws ParseException {
                 if (event == ' ' && isName(word)) {
                     return State.NAME;
-                } else if (event == '*') {
-                    return State.FROM;
+                } else if (word.equalsIgnoreCase("*")) {
+                    return State.STAR;
                 } else if (word.isEmpty()) {
                     return State.SELECT;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
@@ -110,6 +110,17 @@ public class Main {
                     return State.TABLE_NAME;
                 } else if (word.isEmpty()) {
                     return State.FROM;
+                } else throw new ParseException("Syntax error in query:" + (pos + 1));
+            }
+        },
+
+        STAR {
+            @Override
+            public State nextState(String word, Character event) throws ParseException {
+                if(event == ' ' && word.equalsIgnoreCase("FROM")) {
+                    return State.FROM;
+                } else if (word.isEmpty()) {
+                    return State.STAR;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
         },
@@ -165,6 +176,8 @@ public class Main {
                     right_operand = null;
                     operator = null;
                     return State.WHERE;
+                } else if (event == ';') {
+                    return State.END;
                 } else if (word.isEmpty()) {
                     return State.TABLE_NAME;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
@@ -318,7 +331,15 @@ public class Main {
 
                     default:
                         while (pos < input.length() && !isDelim(input.charAt(pos))){
-                            next_word += input.charAt(pos++);
+                            if (Character.isLetter(input.charAt(pos)))
+                                next_word += input.charAt(pos++);
+                            else if((input.charAt(pos) == '_' || Character.isDigit(input.charAt(pos))) && next_word.length() > 1)
+                                next_word += input.charAt(pos++);
+                            else if(isOperator(input.charAt(pos)))
+                                next_word += input.charAt(pos++);
+                            else if(input.charAt(pos) == '\'' || input.charAt(pos) == '*'){
+                                next_word += input.charAt(pos++);
+                            } else throw new ParseException("Syntax error in query:" + (pos + 1));
                          }
                         break;
                 }
@@ -335,7 +356,7 @@ public class Main {
     }
 
     public static boolean isName(String word) throws ParseException {
-        if (word.length() > 0 && !keywordSet.contains(word.toUpperCase()) && !dataTypeSet.contains(word.toUpperCase())) {
+        if (word.length() > 0 && !keywordSet.contains(word.toUpperCase()) && !dataTypeSet.contains(word.toUpperCase()) && !word.startsWith("'")) {
             if (initialState == State.CREATE && variableMaps.containsValue(word))
                 throw new ParseException("Variable " + word + " already used:" + (pos + 1));
             else
@@ -385,6 +406,20 @@ public class Main {
         return word.matches("=?|!=?|>=?|<=?|>?|<?");
     }
 
+    public static boolean isOperator(char ch) {
+        switch(ch){
+
+            case '=':
+            case '!':
+            case '>':
+            case '<':
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     public static boolean isFloat(String word) {
         boolean isValidFloat = false;
         try {
@@ -412,7 +447,6 @@ public class Main {
             case ' ':
             case '(':
             case ')':
-            case '*':
             case ',':
             case ';':
                 return true;
