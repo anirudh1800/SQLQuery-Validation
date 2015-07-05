@@ -26,9 +26,9 @@ public class Main {
     public static State initialState = State.INITIAL;
     public static String input;
     static int pos = 0;
-    char left_op;
-    char righ_op;
-    char operator;
+    static String left_operand = null;
+    static String right_operand = null;
+    static String operator = null;
 
     public enum State {
 
@@ -93,11 +93,11 @@ public class Main {
         SELECT {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-                if(event == ' ' && isName(word)){
+                if (event == ' ' && isName(word)) {
                     return State.NAME;
-                } else if(event == '*') {
+                } else if (event == '*') {
                     return State.FROM;
-                } else if(word.isEmpty()) {
+                } else if (word.isEmpty()) {
                     return State.SELECT;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
@@ -106,9 +106,9 @@ public class Main {
         FROM {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-                if(event == ' ' && isName(word)){
+                if (event == ' ' && isName(word)) {
                     return State.TABLE_NAME;
-                } else if(word.isEmpty()) {
+                } else if (word.isEmpty()) {
                     return State.FROM;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
@@ -142,10 +142,17 @@ public class Main {
                     return State.FROM;
                 } else if (event == ',' && isName(word) && initialState == SELECT) {
                     return State.NAME;
-                } else if (word.isEmpty()) {
-                    return State.NAME;
+                } else if (event == ' ' && isOperator(word)) {
+                    if (left_operand != null) {
+                        operator = word;
+                        return State.COND;
+                    } else throw new ParseException("Syntax error in query:" + (pos + 1));
                 } else if (word.equalsIgnoreCase("VALUES")) {
                     return State.VALUES;
+                } else if (event == ';') {
+                    return State.END;
+                } else if (word.isEmpty()) {
+                    return State.NAME;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
         },
@@ -154,8 +161,11 @@ public class Main {
             @Override
             public State nextState(String word, Character event) throws ParseException {
                 if (event == ' ' && word.equalsIgnoreCase("WHERE")) {
+                    left_operand = null;
+                    right_operand = null;
+                    operator = null;
                     return State.WHERE;
-                }else if (word.isEmpty()) {
+                } else if (word.isEmpty()) {
                     return State.TABLE_NAME;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
@@ -164,10 +174,11 @@ public class Main {
         WHERE {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-                if (event == ' ' && word.equalsIgnoreCase("WHERE")) {
+                if (event == ' ' && isName(word)) {
+                    left_operand = word;
+                    return State.NAME;
+                } else if (word.isEmpty()) {
                     return State.WHERE;
-                }else if (word.isEmpty()) {
-                    return State.TABLE_NAME;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
         },
@@ -175,9 +186,18 @@ public class Main {
         COND {
             @Override
             public State nextState(String word, Character event) throws ParseException {
-                if (event == ' ' && word.equalsIgnoreCase("WHERE")) {
-                    return State.WHERE;
-                }else if (word.isEmpty()) {
+                if (event == ' ' && isName(word)) {
+                    if (left_operand != null && operator != null) {
+                        right_operand = word;
+                        return State.NAME;
+                    } else throw new ParseException("Syntax error in query:" + (pos + 1));
+                }
+                if (event == ' ' && isValue(word)) {
+                    if (left_operand != null && operator != null) {
+                        right_operand = word;
+                        return State.VALUE;
+                    } else throw new ParseException("Syntax error in query:" + (pos + 1));
+                } else if (word.isEmpty()) {
                     return State.TABLE_NAME;
                 } else throw new ParseException("Syntax error in query:" + (pos + 1));
             }
@@ -230,6 +250,8 @@ public class Main {
                 if (event == ',' && isValue(word)) {
                     return State.VALUE;
                 } else if (event == ')') {
+                    return State.END;
+                } else if (event == ';') {
                     return State.END;
                 } else if (word.isEmpty()) {
                     return State.VALUE;
@@ -289,38 +311,15 @@ public class Main {
                     case VALUES:
                     case VALUE:
                         boolean flag = false;
-                        while (pos < input.length()) {
-                            switch (input.charAt(pos)) {
-
-                                case ' ':
-                                    flag = true;
-                                    break;
-
-                                case ',':
-                                    flag = true;
-                                    break;
-
-                                case ')':
-                                    flag = true;
-                                    break;
-
-                                case '(':
-                                    flag = true;
-                                    break;
-
-                                default:
+                        while (pos < input.length() && !isDelim(input.charAt(pos))) {
                                     next_word += input.charAt(pos++);
-                                    break;
-                            }
-                            if (flag)
-                                break;
                         }
                         break;
 
                     default:
-                        while (pos < input.length() && ((input.charAt(pos) == '_' && next_word.length() > 1) || Character.isLetter(input.charAt(pos)) || (Character.isDigit(input.charAt(pos)) && next_word.length() > 1))) {
+                        while (pos < input.length() && !isDelim(input.charAt(pos))){
                             next_word += input.charAt(pos++);
-                        }
+                         }
                         break;
                 }
                 word = next_word;
@@ -383,9 +382,7 @@ public class Main {
     }
 
     public static boolean isOperator(String word) {
-        if(word.matches("=|>=|<=|   ")){
-
-        }
+        return word.matches("=?|!=?|>=?|<=?|>?|<?");
     }
 
     public static boolean isFloat(String word) {
@@ -406,6 +403,23 @@ public class Main {
         } catch (NumberFormatException ex) {
         }
         return isValidInteger;
+    }
+
+
+    public static boolean isDelim(char ch) {
+        switch (ch) {
+
+            case ' ':
+            case '(':
+            case ')':
+            case '*':
+            case ',':
+            case ';':
+                return true;
+
+            default:
+                return false;
+        }
     }
 }
 
